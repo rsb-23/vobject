@@ -49,7 +49,6 @@ has been completed.
   - Publish automagically via GitHub Actions
 - [ ] If dropping Python 2.x, begin slow removal of 2.x code
   - In particular, clean up `bytes` vs `str` everywhere
-  - Remove `six`
   - Remove various `import` compatibility hacks
 - [ ] Robust 4.0 support
 - [ ] Parsing performance

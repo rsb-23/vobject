@@ -11,7 +11,7 @@ or (experimentally) hCalendar unicode strings.
 Requirements
 ------------
 
-Requires python 2.7 or later, dateutil 2.4.0 or later and six.
+Requires python 3.7 or later, dateutil 2.7.0 or later and pytz.
 
 Recent changes
 --------------
@@ -41,7 +41,7 @@ setup(
     bugtrack_url="https://github.com/py-vobject/vobject/issues",
     entry_points={"console_scripts": ["ics_diff = vobject.ics_diff:main", "change_tz = vobject.change_tz:main"]},
     include_package_data=True,
-    install_requires=["python-dateutil >= 2.4.0", "six"],
+    install_requires=["python-dateutil >= 2.7.0", "pytz"],
     platforms=["any"],
     packages=find_packages(),
     description="A full-featured Python package for parsing and creating " "iCalendar and vCard files",

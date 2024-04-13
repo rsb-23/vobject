@@ -1,0 +1,9 @@
+ARG PYTHON_VERSION
+FROM python:${PYTHON_VERSION}-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y git
+
+RUN pip install --upgrade pip
+RUN pip install isort[pyproject] pylint flake8[pyproject]
+
+CMD ["./scripts/checks_py27.sh"]

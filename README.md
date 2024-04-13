@@ -4,6 +4,9 @@
 [![Build](https://github.com/py-vobject/vobject/actions/workflows/test.yml/badge.svg)](https://github.com/py-vobject/vobject/actions/workflows/test.yml)
 [![License](https://img.shields.io/pypi/l/vobject.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
+> :warning: `latest` branch in under-development. It uses latest Python3 features.
+> Follow project [py-vobject/vobject](https://github.com/py-vobject/vobject) for stable releases.
+
 VObject is intended to be a full-featured Python package for parsing and 
 generating vCard and vCalendar files.
 
@@ -21,7 +24,7 @@ VObject is licensed under the [Apache 2.0 license](http://www.apache.org/license
 Useful scripts included with VObject:
 
 * [ics_diff](https://github.com/py-vobject/vobject/blob/master/vobject/ics_diff.py): order is irrelevant in iCalendar files, return a diff of meaningful changes between icalendar files
-* [change_tz](https://github.com/py-vobject/vobject/blob/master/vobject/change_tz.py): Take an iCalendar file with events in the wrong timezone, change all events or just UTC events into one of the timezones PyICU supports. Requires [PyICU](https://pypi.python.org/pypi/PyICU/).
+* [change_tz](https://github.com/py-vobject/vobject/blob/master/vobject/change_tz.py): Take an iCalendar file with events in the wrong timezone, change all events or just UTC events into one of the timezones **pytz** supports. Requires [pytz](https://pypi.python.org/pypi/pytz/).
 
 # History
 VObject was originally developed in concert with the Open Source Application 
@@ -52,7 +55,7 @@ Or download the package and run:
 python setup.py install
 ```
 
-VObject requires Python 2.7 or higher, along with the [dateutil](https://pypi.python.org/pypi/python-dateutil/) and [six](https://pypi.python.org/pypi/six) packages.
+VObject requires Python 3.7 or higher, along with the [dateutil](https://pypi.python.org/pypi/python-dateutil) and [pytz](https://pypi.python.org/pypi/pytz) packages.
 
 
 # Running tests
@@ -60,7 +63,7 @@ VObject requires Python 2.7 or higher, along with the [dateutil](https://pypi.py
 To run all tests, use:
 
 ```
-python tests.py
+python -m unittest discover -f
 ```
 
 
@@ -220,7 +223,6 @@ Similarly, readComponents is a generator yielding one top level component at a t
 datetime.datetime(2006, 2, 16, 0, 0, tzinfo=tzutc())
 ```
 
-More examples can be found in source code doctests.
 
 
 ## vCards

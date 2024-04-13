@@ -1,8 +1,9 @@
 from . import base
+from .vobject_error import ValidateError
 
 
 # ------------------------ Abstract class for behavior --------------------------
-class Behavior(object):
+class Behavior:
     """
     Behavior (validation, encoding, and transformations) for vobjects.
 
@@ -61,16 +62,22 @@ class Behavior(object):
         raise base.VObjectError(err)
 
     @classmethod
-    def validate(cls, obj, raiseException=False, complainUnrecognized=False):
+    def validate(cls, obj, raiseException=False, *args):
+        complainUnrecognized = False
+        # TODO: add deprecated params warning
+        return cls._validate(obj, raise_exception=raiseException, complain_unrecognized=complainUnrecognized)
+
+    @classmethod
+    def _validate(cls, obj, raise_exception=False, complain_unrecognized=False):
         """Check if the object satisfies this behavior's requirements.
 
         @param obj:
             The L{ContentLine<base.ContentLine>} or
             L{Component<base.Component>} to be validated.
-        @param raiseException:
+        @param raise_exception:
             If True, raise a L{base.ValidateError} on validation failure.
             Otherwise return a boolean.
-        @param complainUnrecognized:
+        @param complain_unrecognized:
             If True, fail to validate if an uncrecognized parameter or child is
             found.  Otherwise log the lack of recognition.
 
@@ -79,24 +86,24 @@ class Behavior(object):
             err = "{0} has a group, but this object doesn't support groups".format(obj)
             raise base.VObjectError(err)
         if isinstance(obj, base.ContentLine):
-            return cls.lineValidate(obj, raiseException, complainUnrecognized)
+            return cls.lineValidate(obj, raise_exception, complain_unrecognized)
         elif isinstance(obj, base.Component):
             count = {}
             for child in obj.getChildren():
-                if not child.validate(raiseException, complainUnrecognized):
+                if not child.validate(raise_exception, complain_unrecognized):
                     return False
                 name = child.name.upper()
                 count[name] = count.get(name, 0) + 1
             for key, val in cls.knownChildren.items():
                 if count.get(key, 0) < val[0]:
-                    if raiseException:
+                    if raise_exception:
                         m = "{0} components must contain at least {1} {2}"
-                        raise base.ValidateError(m.format(cls.name, val[0], key))
+                        raise ValidateError(m.format(cls.name, val[0], key))
                     return False
                 if val[1] and count.get(key, 0) > val[1]:
-                    if raiseException:
+                    if raise_exception:
                         m = "{0} components cannot contain more than {1} {2}"
-                        raise base.ValidateError(m.format(cls.name, val[1], key))
+                        raise ValidateError(m.format(cls.name, val[1], key))
                     return False
             return True
         else:
@@ -107,7 +114,8 @@ class Behavior(object):
     def lineValidate(cls, line, raiseException, complainUnrecognized):
         """Examine a line's parameters and values, return True if valid."""
         # todo: remove used param line, raiseException, complainUnrecognized
-        print(line, raiseException, complainUnrecognized)
+        if any([line, raiseException, complainUnrecognized]):
+            pass
         return True
 
     @classmethod
@@ -120,8 +128,8 @@ class Behavior(object):
         if not line.encoded:
             line.encoded = 1
 
-    @classmethod
-    def transformToNative(cls, obj):
+    @staticmethod
+    def transformToNative(obj):
         """
         Turn a ContentLine or Component into a Python-native representation.
 
@@ -132,19 +140,42 @@ class Behavior(object):
         return obj
 
     @classmethod
-    def transformFromNative(cls, obj):
+    def transformToNative_(cls, obj):
+        """
+        Turn a ContentLine or Component into a Python-native representation.
+
+        If appropriate, turn dates or datetime strings into Python objects.
+        Components containing VTIMEZONEs turn into VtimezoneComponents.
+
+        """
+        return obj
+
+    @staticmethod
+    def transformFromNative(obj):
         """
         Inverse of transformToNative.
         """
         raise base.NativeError("No transformFromNative defined")
 
     @classmethod
-    def generateImplicitParameters(cls, obj):
+    def transformFromNative_(cls, obj):
+        """
+        Inverse of transformToNative.
+        """
+        raise base.NativeError("No transformFromNative defined")
+
+    @staticmethod
+    def generateImplicitParameters(obj):
         """Generate any required information that don't yet exist."""
         pass
 
     @classmethod
-    def serialize(cls, obj, buf, lineLength, validate=True, *args, **kwargs):
+    def generateImplicitParameters_(cls, obj):
+        """Generate any required information that don't yet exist."""
+        pass
+
+    @classmethod
+    def serialize(cls, obj, buf, line_length, validate=True, *args, **kwargs):
         """
         Set implicit parameters, do encoding, return unicode string.
 
@@ -166,7 +197,7 @@ class Behavior(object):
             transformed = obj
             undoTransform = False
 
-        out = base.defaultSerialize(transformed, buf, lineLength)
+        out = base.defaultSerialize(transformed, buf, line_length)
         if undoTransform:
             obj.transformToNative()
         return out

@@ -1,33 +1,32 @@
-from __future__ import print_function
-
 from optparse import OptionParser
 
-from .base import Component, getBehavior, newFromBehavior, readOne
+from vobject.helper import deprecated
+
+from .base import Component, new_from_behavior, readOne
 
 """
 Compare VTODOs and VEVENTs in two iCalendar sources.
 """
 
+version = "0.1"
+
 
 def getSortKey(component):
-    def getUID(component):
+    def getUID():
         return component.getChildValue("uid", "")
 
     # it's not quite as simple as getUID, need to account for recurrenceID and
     # sequence
 
-    def getSequence(component):
+    def getSequence():
         sequence = component.getChildValue("sequence", 0)
-        return "{0:05d}".format(int(sequence))
+        return f"{int(sequence):05d}"
 
-    def getRecurrenceID(component):
+    def getRecurrenceID() -> str:
         recurrence_id = component.getChildValue("recurrence_id", None)
-        if recurrence_id is None:
-            return "0000-00-00"
-        else:
-            return recurrence_id.isoformat()
+        return recurrence_id.isoformat() if recurrence_id else "0000-00-00"
 
-    return getUID(component) + getSequence(component) + getRecurrenceID(component)
+    return getUID() + getSequence() + getRecurrenceID()
 
 
 def sortByUID(components):
@@ -94,15 +93,6 @@ def diff(left, right):
 
         return output
 
-    def newComponent(name, body):
-        if body is None:
-            return None
-        else:
-            c = Component(name)
-            c.behavior = getBehavior(name)
-            c.isNative = True
-            return c
-
     def processComponentPair(leftComp, rightComp):
         """
         Return None if a match, or a pair of components including UIDs and
@@ -132,36 +122,35 @@ def diff(left, right):
                 else:
                     differentContentLines.append(([], rightComp.contents[key]))
 
-        if len(differentContentLines) == 0 and len(differentComponents) == 0:
+        if not differentContentLines and not differentComponents:
             return None
-        else:
-            left = newFromBehavior(leftComp.name)
-            right = newFromBehavior(leftComp.name)
-            # add a UID, if one existed, despite the fact that they'll always be
-            # the same
-            uid = leftComp.getChildValue("uid")
-            if uid is not None:
-                left.add("uid").value = uid
-                right.add("uid").value = uid
 
-            for name, childPairList in differentComponents.items():
-                leftComponents, rightComponents = zip(*childPairList)
-                if len(leftComponents) > 0:
-                    # filter out None
-                    left.contents[name] = filter(None, leftComponents)
-                if len(rightComponents) > 0:
-                    # filter out None
-                    right.contents[name] = filter(None, rightComponents)
+        _left = new_from_behavior(leftComp.name)
+        _right = new_from_behavior(leftComp.name)
+        # add a UID, if one existed, despite the fact that they'll always be the same
+        uid = leftComp.getChildValue("uid")
+        if uid is not None:
+            _left.add("uid").value = uid
+            _right.add("uid").value = uid
 
-            for leftChildLine, rightChildLine in differentContentLines:
-                nonEmpty = leftChildLine or rightChildLine
-                name = nonEmpty[0].name
-                if leftChildLine is not None:
-                    left.contents[name] = leftChildLine
-                if rightChildLine is not None:
-                    right.contents[name] = rightChildLine
+        for name, childPairList in differentComponents.items():
+            leftComponents, rightComponents = zip(*childPairList)
+            if len(leftComponents) > 0:
+                # filter out None
+                _left.contents[name] = filter(None, leftComponents)
+            if len(rightComponents) > 0:
+                # filter out None
+                _right.contents[name] = filter(None, rightComponents)
 
-            return left, right
+        for leftChildLine, rightChildLine in differentContentLines:
+            nonEmpty = leftChildLine or rightChildLine
+            name = nonEmpty[0].name
+            if leftChildLine is not None:
+                _left.contents[name] = leftChildLine
+            if rightChildLine is not None:
+                _right.contents[name] = rightChildLine
+
+        return _left, _right
 
     vevents = processComponentLists(
         sortByUID(getattr(left, "vevent_list", [])), sortByUID(getattr(right, "vevent_list", []))
@@ -174,16 +163,21 @@ def diff(left, right):
     return vevents + vtodos
 
 
+@deprecated
 def prettyDiff(leftObj, rightObj):
-    for left, right in diff(leftObj, rightObj):
-        print("<<<<<<<<<<<<<<<")
+    return pretty_diff(leftObj, rightObj)
+
+
+def pretty_diff(left_obj, right_obj):
+    seperator_size = 15
+    for left, right in diff(left_obj, right_obj):
+        print("<" * seperator_size)
         if left is not None:
-            left.prettyPrint()
-        print("===============")
+            left.pretty_print()
+        print("=" * seperator_size)
         if right is not None:
-            right.prettyPrint()
-        print(">>>>>>>>>>>>>>>")
-        print
+            right.pretty_print()
+        print(">" * seperator_size)
 
 
 def main():
@@ -197,9 +191,6 @@ def main():
         deleteExtraneous(cal1, ignore_dtstamp=ignore_dtstamp)
         deleteExtraneous(cal2, ignore_dtstamp=ignore_dtstamp)
         prettyDiff(cal1, cal2)
-
-
-version = "0.1"
 
 
 def getOptions():
@@ -221,7 +212,6 @@ def getOptions():
     (cmdline_options, args) = parser.parse_args()
     if len(args) < 2:
         print("error: too few arguments given")
-        print
         print(parser.format_help())
         return False, False
 

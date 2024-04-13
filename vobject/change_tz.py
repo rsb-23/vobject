@@ -1,15 +1,14 @@
 """Translate an ics file's events to a different timezone."""
 
+from datetime import datetime
 from optparse import OptionParser
+
+import pytz
+from dateutil import tz
 
 from vobject import base, icalendar
 
-try:
-    import PyICU
-except ImportError:
-    PyICU = None
-
-from datetime import datetime
+version = "0.1"
 
 
 def change_tz(cal, new_timezone, default, utc_only=False, utc_tz=icalendar.utc):
@@ -19,11 +18,9 @@ def change_tz(cal, new_timezone, default, utc_only=False, utc_tz=icalendar.utc):
     Args:
         cal (Component): the component to change
         new_timezone (tzinfo): the timezone to change to
-        default (tzinfo): a timezone to assume if the dtstart or dtend in cal
-            doesn't have an existing timezone
+        default (tzinfo): a timezone to assume if the dtstart or dtend in cal doesn't have an existing timezone
         utc_only (bool): only convert dates that are in utc
-        utc_tz (tzinfo): the tzinfo to compare to for UTC when processing
-            utc_only=True
+        utc_tz (tzinfo): the tzinfo to compare to for UTC when processing utc_only=True
     """
 
     for vevent in getattr(cal, "vevent_list", []):
@@ -38,44 +35,39 @@ def change_tz(cal, new_timezone, default, utc_only=False, utc_tz=icalendar.utc):
                     node.value = dt.astimezone(new_timezone)
 
 
+def show_timezones():
+    for tz_string in pytz.all_timezones:
+        print(tz_string)
+
+
+def convert_events(utc_only, args):
+    print(f"Converting {'only UTC' if utc_only else 'all'} events")
+    ics_file = args[0]
+    _tzone = args[1] if len(args) > 1 else "UTC"
+
+    print(f"... Reading {ics_file}")
+    cal = base.readOne(open(ics_file))
+    change_tz(cal, new_timezone=tz.gettz(_tzone), default=tz.gettz("UTC"), utc_only=utc_only)
+
+    out_name = f"{ics_file}.converted"
+    print(f"... Writing {out_name}")
+    with open(out_name, "wb") as out:
+        cal.serialize(out)
+
+    print("Done")
+
+
 def main():
     options, args = get_options()
-    if PyICU is None:
-        print("Failure. change_tz requires PyICU, exiting")
-    elif options.list:
-        for tz_string in PyICU.TimeZone.createEnumeration():
-            print(tz_string)
+
+    if options.list:
+        show_timezones()
     elif args:
-        utc_only = options.utc
-        if utc_only:
-            which = "only UTC"
-        else:
-            which = "all"
-        print("Converting {0!s} events".format(which))
-        ics_file = args[0]
-        if len(args) > 1:
-            timezone = PyICU.ICUtzinfo.getInstance(args[1])
-        else:
-            timezone = PyICU.ICUtzinfo.default
-        print("... Reading {0!s}".format(ics_file))
-        cal = base.readOne(open(ics_file))
-        change_tz(cal, timezone, PyICU.ICUtzinfo.default, utc_only)
-
-        out_name = ics_file + ".converted"
-        print("... Writing {0!s}".format(out_name))
-
-        with open(out_name, "wb") as out:
-            cal.serialize(out)
-
-        print("Done")
-
-
-version = "0.1"
+        convert_events(utc_only=options.utc, args=args)
 
 
 def get_options():
     # Configuration options
-
     usage = """usage: %prog [options] ics_file [timezone]"""
     parser = OptionParser(usage=usage, version=version)
     parser.set_description("change_tz will convert the timezones in an ics file. ")
@@ -86,11 +78,10 @@ def get_options():
     parser.add_option("-l", "--list", dest="list", action="store_true", default=False, help="List available timezones")
 
     (cmdline_options, args) = parser.parse_args()
-    if not args and not cmdline_options.list:
+    if not (args or cmdline_options.list):
         print("error: too few arguments given")
-        print
         print(parser.format_help())
-        return False, False
+        return cmdline_options, False
 
     return cmdline_options, args
 

@@ -42,47 +42,17 @@ VObject Overview
 
     Examples
     --------
-
-    >>> import datetime
-    >>> import dateutil.rrule as rrule
-    >>> x = iCalendar()
-    >>> x.add('vevent')
-    <VEVENT| []>
-    >>> x
-    <VCALENDAR| [<VEVENT| []>]>
-    >>> v = x.vevent
-    >>> utc = icalendar.utc
-    >>> v.add('dtstart').value = datetime.datetime(2004, 12, 15, 14, tzinfo = utc)
-    >>> v
-    <VEVENT| [<DTSTART{}2004-12-15 14:00:00+00:00>]>
-    >>> x
-    <VCALENDAR| [<VEVENT| [<DTSTART{}2004-12-15 14:00:00+00:00>]>]>
-    >>> newrule = rrule.rruleset()
-    >>> newrule.rrule(rrule.rrule(rrule.WEEKLY, count=2, dtstart=v.dtstart.value))
-    >>> v.rruleset = newrule
-    >>> list(v.rruleset)
-    [datetime.datetime(2004, 12, 15, 14, 0, tzinfo=tzutc()), datetime.datetime(2004, 12, 22, 14, 0, tzinfo=tzutc())]
-    >>> v.add('uid').value = "randomuid@MYHOSTNAME"
-    >>> print x.serialize()
-    BEGIN:VCALENDAR
-    VERSION:2.0
-    PRODID:-//PYVOBJECT//NONSGML Version 1//EN
-    BEGIN:VEVENT
-    UID:randomuid@MYHOSTNAME
-    DTSTART:20041215T140000Z
-    RRULE:FREQ=WEEKLY;COUNT=2
-    END:VEVENT
-    END:VCALENDAR
+    ==> moved to test_from_doctest.py > VobjectDoctest
 
 """
 
 from . import icalendar, vcard
-from .base import newFromBehavior, readComponents, readOne
+from .base import new_from_behavior, readComponents, readOne
 
 
 def iCalendar():
-    return newFromBehavior("vcalendar", "2.0")
+    return new_from_behavior("vcalendar", "2.0")
 
 
 def vCard():
-    return newFromBehavior("vcard", "3.0")
+    return new_from_behavior("vcard", "3.0")

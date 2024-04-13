@@ -10,3 +10,5 @@ venv/**/*
 *.sublime-*
 .coverage
 venv*
+htmlcov/
+.tox/

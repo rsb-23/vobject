@@ -1,15 +1,24 @@
 """Definitions and behavior for vCard 3.0"""
 
+from __future__ import annotations
+
 import codecs
 
 from . import behavior
-from .base import ContentLine, backslashEscape, basestring, registerBehavior, str_
+from .base import ContentLine, register_behavior
+from .helper import backslash_escape, logger
 from .icalendar import stringToTextValues
 
+logger.name = __name__
+
+wacky_apple_photo_serialize = True
+REALLY_LARGE = 1e50
+NAME_ORDER = ("family", "given", "additional", "prefix", "suffix")
+ADDRESS_ORDER = ("box", "extended", "street", "city", "region", "code", "country")
+
+
 # ------------------------ vCard structs ---------------------------------------
-
-
-class Name(object):
+class Name:
     def __init__(self, family="", given="", additional="", prefix="", suffix=""):
         """
         Each name attribute can be a string or a list of strings.
@@ -29,26 +38,22 @@ class Name(object):
 
     def __str__(self):
         eng_order = ("prefix", "given", "additional", "family", "suffix")
-        out = " ".join(self.toString(getattr(self, val)) for val in eng_order)
-        return str_(out)
+        return " ".join(self.toString(getattr(self, val)) for val in eng_order)
 
     def __repr__(self):
-        return "<Name: {0!s}>".format(self.__str__())
+        return f"<Name: {str(self)}>"
 
     def __eq__(self, other):
-        try:
-            return (
-                self.family == other.family
-                and self.given == other.given
-                and self.additional == other.additional
-                and self.prefix == other.prefix
-                and self.suffix == other.suffix
-            )
-        except Exception:
-            return False
+        return (
+            self.family == other.family
+            and self.given == other.given
+            and self.additional == other.additional
+            and self.prefix == other.prefix
+            and self.suffix == other.suffix
+        )
 
 
-class Address(object):
+class Address:
     def __init__(self, street="", city="", region="", code="", country="", box="", extended=""):
         """
         Each name attribute can be a string or a list of strings.
@@ -66,9 +71,7 @@ class Address(object):
         """
         Turn a string or array value into a string.
         """
-        if type(val) in (list, tuple):
-            return join_char.join(val)
-        return val
+        return join_char.join(val) if type(val) in (list, tuple) else val
 
     lines = ("box", "extended", "street")
     one_line = ("city", "region", "code")
@@ -95,7 +98,7 @@ class Address(object):
                 and self.code == other.code
                 and self.country == other.country
             )
-        except Exception:
+        except AttributeError:
             return False
 
 
@@ -129,10 +132,9 @@ class VCardTextBehavior(behavior.Behavior):
                 line.encoding_param = cls.base64string
             encoding = getattr(line, "encoding_param", None)
             if encoding:
-                if isinstance(line.value, bytes):
-                    line.value = codecs.decode(line.value, "base64")
-                else:
-                    line.value = codecs.decode(line.value.encode("utf-8"), "base64")
+                if not isinstance(line.value, bytes):
+                    line.value = line.value.encode("utf-8")
+                line.value = codecs.decode(line.value, "base64")
             else:
                 line.value = stringToTextValues(line.value)[0]
             line.encoded = False
@@ -150,7 +152,7 @@ class VCardTextBehavior(behavior.Behavior):
                 else:
                     line.value = codecs.encode(line.value.encode(encoding), "base64").decode("utf-8")
             else:
-                line.value = backslashEscape(line.value)
+                line.value = backslash_escape(line.value)
             line.encoded = True
 
 
@@ -159,7 +161,7 @@ class VCardBehavior(behavior.Behavior):
     defaultBehavior = VCardTextBehavior
 
 
-class VCard3_0(VCardBehavior):
+class VCard3(VCardBehavior):
     """
     vCard 3.0 behavior.
     """
@@ -194,7 +196,7 @@ class VCard3_0(VCardBehavior):
             obj.add(ContentLine("VERSION", [], cls.versionString))
 
 
-registerBehavior(VCard3_0, default=True)
+register_behavior(VCard3, default=True)
 
 
 class FN(VCardTextBehavior):
@@ -202,7 +204,7 @@ class FN(VCardTextBehavior):
     description = "Formatted name"
 
 
-registerBehavior(FN)
+register_behavior(FN)
 
 
 class Label(VCardTextBehavior):
@@ -210,10 +212,7 @@ class Label(VCardTextBehavior):
     description = "Formatted address"
 
 
-registerBehavior(Label)
-
-wacky_apple_photo_serialize = True
-REALLY_LARGE = 1e50
+register_behavior(Label)
 
 
 class Photo(VCardTextBehavior):
@@ -222,29 +221,26 @@ class Photo(VCardTextBehavior):
 
     @classmethod
     def valueRepr(cls, line):
-        return " (BINARY PHOTO DATA at 0x{0!s}) ".format(id(line.value))
+        return f" (BINARY PHOTO DATA at 0x{id(line.value)!s}) "
 
     @classmethod
-    def serialize(cls, obj, buf, lineLength, validate, *args, **kwargs):
+    def serialize(cls, obj, buf, line_length, validate=True, *args, **kwargs):
         """
         Apple's Address Book is *really* weird with images, it expects
         base64 data to have very specific whitespace.  It seems Address Book
         can handle PHOTO if it's not wrapped, so don't wrap it.
         """
         if wacky_apple_photo_serialize:
-            lineLength = REALLY_LARGE
-        VCardTextBehavior.serialize(obj, buf, lineLength, validate, *args, **kwargs)
+            line_length = REALLY_LARGE
+        VCardTextBehavior.serialize(obj, buf, line_length, validate, *args, **kwargs)
 
 
-registerBehavior(Photo)
+register_behavior(Photo)
 
 
 def toListOrString(string):
     stringList = stringToTextValues(string)
-    if len(stringList) == 1:
-        return stringList[0]
-    else:
-        return stringList
+    return stringList[0] if len(stringList) == 1 else stringList
 
 
 def splitFields(string):
@@ -254,10 +250,8 @@ def splitFields(string):
     return [toListOrString(i) for i in stringToTextValues(string, listSeparator=";", charList=";")]
 
 
-def toList(stringOrList):
-    if isinstance(stringOrList, basestring):
-        return [stringOrList]
-    return stringOrList
+def toList(string_or_list) -> list[str]:
+    return [string_or_list] if isinstance(string_or_list, str) else string_or_list
 
 
 def serializeFields(obj, order=None):
@@ -269,16 +263,12 @@ def serializeFields(obj, order=None):
     """
     fields = []
     if order is None:
-        fields = [backslashEscape(val) for val in obj]
+        fields = [backslash_escape(val) for val in obj]
     else:
         for field in order:
-            escapedValueList = [backslashEscape(val) for val in toList(getattr(obj, field))]
+            escapedValueList = [backslash_escape(val) for val in toList(getattr(obj, field))]
             fields.append(",".join(escapedValueList))
     return ";".join(fields)
-
-
-NAME_ORDER = ("family", "given", "additional", "prefix", "suffix")
-ADDRESS_ORDER = ("box", "extended", "street", "city", "region", "code", "country")
 
 
 class NameBehavior(VCardBehavior):
@@ -309,7 +299,7 @@ class NameBehavior(VCardBehavior):
         return obj
 
 
-registerBehavior(NameBehavior, "N")
+register_behavior(NameBehavior, "N")
 
 
 class AddressBehavior(VCardBehavior):
@@ -340,7 +330,7 @@ class AddressBehavior(VCardBehavior):
         return obj
 
 
-registerBehavior(AddressBehavior, "ADR")
+register_behavior(AddressBehavior, "ADR")
 
 
 class OrgBehavior(VCardBehavior):
@@ -373,4 +363,4 @@ class OrgBehavior(VCardBehavior):
         return obj
 
 
-registerBehavior(OrgBehavior, "ORG")
+register_behavior(OrgBehavior, "ORG")
